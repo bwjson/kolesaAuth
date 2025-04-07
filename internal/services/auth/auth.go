@@ -2,6 +2,9 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"github.com/bwjson/kolesa_auth/internal/lib/random/codeutil"
 	"github.com/bwjson/kolesa_auth/pkg/sms"
 	"log/slog"
 )
@@ -26,20 +29,42 @@ func NewAuthService(log *slog.Logger, repo Repository, smsClient *sms.SmsClient)
 	return &AuthService{log: log, repo: repo, smsClient: smsClient}
 }
 
-type TokensResponse struct {
-	accessToken  string
-	refreshToken string
-}
-
 func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber string) error {
-	//Generate code
-	//Save(),
-	//SendSMS()
+	code, err := codeutil.GenerateFourDigitsCode()
+	if err != nil {
+		return err
+	}
+
+	err = a.repo.Save(ctx, phoneNumber, code)
+	if err != nil {
+		return err
+	}
+
+	err = a.smsClient.SendSMS(fmt.Sprintf("Your verification code is %s", code), phoneNumber)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (a *AuthService) VerifyCode(ctx context.Context, phoneNumber, code string) (accessToken, refreshToken string, err error) {
-	//IsValidCode()
+	a.log.Info("Starting the service method VerifyCode")
+
+	isValid, err := a.repo.IsValidCode(ctx, phoneNumber, code)
+
+	a.log.Info("IsValidCode method used")
+
+	if err != nil {
+		return "", "", err
+	}
+	if !isValid {
+		return "", "", errors.New("invalid code")
+	}
+
 	//JWT
+
+	a.repo.Delete(ctx, phoneNumber)
+
 	return "accessToken", "refreshToken", nil
 }

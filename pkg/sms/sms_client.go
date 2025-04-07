@@ -24,12 +24,12 @@ func (s *SmsClient) SendSMS(text, toNumber string) error {
 
 	resp, err := s.Client.Api.CreateMessage(params)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Println(err.Error())
 		return err
 	}
 
 	if resp.Body != nil {
-		log.Fatal(*resp.Body)
+		log.Println(*resp.Body)
 		return err
 	}
 
