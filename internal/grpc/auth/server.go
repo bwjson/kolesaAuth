@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"strings"
 )
 
 type serverApi struct {
@@ -24,6 +25,10 @@ type Auth interface {
 		phoneNumber string,
 		code string,
 	) (accessToken, refreshToken string, err error)
+	RefreshAccessToken(
+		ctx context.Context,
+		refreshToken string,
+	) (accessToken string, err error)
 }
 
 func Register(gRPCServer *grpc.Server, auth Auth) {
@@ -58,4 +63,26 @@ func (s *serverApi) VerifyCode(ctx context.Context, request *sso.VerifyCodeReque
 	}
 
 	return &sso.VerifyCodeResponse{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+}
+
+func (s *serverApi) RefreshAccessToken(ctx context.Context, request *sso.RefreshAccessTokenRequest) (*sso.RefreshAccessTokenResponse, error) {
+	if request.RefreshToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "Please provide refresh token")
+	}
+
+	if len(request.RefreshToken) < 100 || len(request.RefreshToken) > 1000 {
+		return nil, status.Error(codes.InvalidArgument, "Please provide valid refresh token")
+	}
+
+	parts := strings.Split(request.RefreshToken, ".")
+	if len(parts) != 3 {
+		return nil, status.Error(codes.InvalidArgument, "Please provide valid refresh token")
+	}
+
+	accessToken, err := s.auth.RefreshAccessToken(ctx, request.RefreshToken)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &sso.RefreshAccessTokenResponse{AccessToken: accessToken}, nil
 }

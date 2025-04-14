@@ -5,13 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwjson/kolesa_auth/internal/lib/random/codeutil"
+	"github.com/bwjson/kolesa_auth/pkg/jwt"
 	"github.com/bwjson/kolesa_auth/pkg/sms"
+	"log"
 	"log/slog"
+	"time"
 )
 
 type Repository interface {
-	Save(ctx context.Context, phoneNumber, verificationCode string) error
-	Delete(ctx context.Context, phoneNumber string) error
+	Save(ctx context.Context, key, value string, ttl time.Duration) error
+	Delete(ctx context.Context, key string) error
+	Get(ctx context.Context, key string) (string, error)
 	IsValidCode(ctx context.Context, phoneNumber, verificationCode string) (bool, error)
 }
 
@@ -23,10 +27,11 @@ type AuthService struct {
 	log       *slog.Logger
 	repo      Repository
 	smsClient *sms.SmsClient
+	jwtClient *jwt.JWTClient
 }
 
-func NewAuthService(log *slog.Logger, repo Repository, smsClient *sms.SmsClient) *AuthService {
-	return &AuthService{log: log, repo: repo, smsClient: smsClient}
+func NewAuthService(log *slog.Logger, repo Repository, smsClient *sms.SmsClient, jwtClient *jwt.JWTClient) *AuthService {
+	return &AuthService{log: log, repo: repo, smsClient: smsClient, jwtClient: jwtClient}
 }
 
 func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber string) error {
@@ -35,7 +40,7 @@ func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber stri
 		return err
 	}
 
-	err = a.repo.Save(ctx, phoneNumber, code)
+	err = a.repo.Save(ctx, "ACCESS"+phoneNumber, code, time.Minute*3)
 	if err != nil {
 		return err
 	}
@@ -49,11 +54,7 @@ func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber stri
 }
 
 func (a *AuthService) VerifyCode(ctx context.Context, phoneNumber, code string) (accessToken, refreshToken string, err error) {
-	a.log.Info("Starting the service method VerifyCode")
-
-	isValid, err := a.repo.IsValidCode(ctx, phoneNumber, code)
-
-	a.log.Info("IsValidCode method used")
+	isValid, err := a.repo.IsValidCode(ctx, "ACCESS"+phoneNumber, code)
 
 	if err != nil {
 		return "", "", err
@@ -62,9 +63,46 @@ func (a *AuthService) VerifyCode(ctx context.Context, phoneNumber, code string) 
 		return "", "", errors.New("invalid code")
 	}
 
-	//JWT
+	// Generating JWT tokens
+	accessToken, err = a.jwtClient.GenerateAccessToken(phoneNumber)
+	if err != nil {
+		return "", "", err
+	}
+	refreshToken, err = a.jwtClient.GenerateRefreshToken(phoneNumber)
+	if err != nil {
+		return "", "", err
+	}
 
-	a.repo.Delete(ctx, phoneNumber)
+	// ttl is one week
+	err = a.repo.Save(ctx, "REFRESH"+phoneNumber, refreshToken, time.Hour*24*7)
+	if err != nil {
+		return "", "", err
+	}
 
-	return "accessToken", "refreshToken", nil
+	return accessToken, refreshToken, nil
+}
+
+func (a *AuthService) RefreshAccessToken(ctx context.Context, refreshToken string) (string, error) {
+	// Parse payload from token
+	log.Println("Parsing token")
+	phoneNumber, err := a.jwtClient.ParseToken(refreshToken)
+	if err != nil {
+		return "", err
+	}
+
+	// Check if this token in cache
+	_, err = a.repo.Get(ctx, "REFRESH"+phoneNumber)
+	if err != nil {
+		return "", err
+	}
+
+	accessToken, err := a.jwtClient.GenerateAccessToken(phoneNumber)
+	if err != nil {
+		return "", err
+	}
+
+	a.repo.Save(ctx, "ACCESS"+phoneNumber, accessToken, time.Minute*3)
+
+	// Refresh token remains the same
+	return accessToken, nil
 }

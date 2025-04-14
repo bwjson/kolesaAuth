@@ -11,10 +11,15 @@ type Config struct {
 	Redis
 	Twilio
 	GRPC
+	JWT
 }
 
 type GRPC struct {
 	Port int
+}
+
+type JWT struct {
+	JWTSecret string
 }
 
 type Redis struct {
@@ -45,6 +50,8 @@ func LoadConfig() *Config {
 	cfg.Twilio.FromNumber = os.Getenv("TWILIO_PHONE_NUMBER")
 
 	cfg.GRPC.Port, _ = strconv.Atoi(os.Getenv("GRPC_PORT"))
+
+	cfg.JWT.JWTSecret = os.Getenv("JWT_SECRET")
 
 	return &cfg
 }
