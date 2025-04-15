@@ -36,7 +36,7 @@ func Register(gRPCServer *grpc.Server, auth Auth) {
 }
 
 func (s *serverApi) SendVerificationCode(ctx context.Context, request *sso.SendVerificationCodeRequest) (*emptypb.Empty, error) {
-	if len(request.PhoneNumber) != 12 {
+	if len(request.PhoneNumber) != 12 || len(request.PhoneNumber) != 13 {
 		return nil, status.Error(codes.InvalidArgument, "Please provide phone number in appropriate format")
 	}
 
