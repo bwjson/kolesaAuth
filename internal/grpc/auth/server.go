@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"log"
 	"strings"
 )
 
@@ -36,7 +37,8 @@ func Register(gRPCServer *grpc.Server, auth Auth) {
 }
 
 func (s *serverApi) SendVerificationCode(ctx context.Context, request *sso.SendVerificationCodeRequest) (*emptypb.Empty, error) {
-	if len(request.PhoneNumber) != 12 || len(request.PhoneNumber) != 13 {
+	log.Println(len(request.PhoneNumber))
+	if len(request.PhoneNumber) != 12 && len(request.PhoneNumber) != 13 {
 		return nil, status.Error(codes.InvalidArgument, "Please provide phone number in appropriate format")
 	}
 
