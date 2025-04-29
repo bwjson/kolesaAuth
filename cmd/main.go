@@ -18,7 +18,7 @@ func main() {
 
 	application := app.New(log,
 		cfg.GRPC.Port, cfg.Redis.Address, cfg.Redis.User, cfg.Redis.Password,
-		cfg.Twilio.AccountSid, cfg.Twilio.AuthToken, cfg.Twilio.FromNumber, cfg.JWT.JWTSecret)
+		cfg.Twilio.AccountSid, cfg.Twilio.AuthToken, cfg.Twilio.FromNumber, cfg.JWT.JWTSecret, cfg.TgBot.BotToken, cfg.TgBot.ChannelID)
 
 	go func() {
 		application.GRPCServer.MustRun()

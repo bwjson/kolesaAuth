@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwjson/kolesa_auth/internal/lib/random/codeutil"
+	"github.com/bwjson/kolesa_auth/pkg/bot"
 	"github.com/bwjson/kolesa_auth/pkg/jwt"
 	"github.com/bwjson/kolesa_auth/pkg/sms"
-	"log"
 	"log/slog"
 	"time"
 )
@@ -17,6 +17,7 @@ type Repository interface {
 	Delete(ctx context.Context, key string) error
 	Get(ctx context.Context, key string) (string, error)
 	IsValidCode(ctx context.Context, phoneNumber, verificationCode string) (bool, error)
+	GetAll(ctx context.Context) (map[string]string, error)
 }
 
 type SmsClient interface {
@@ -28,10 +29,11 @@ type AuthService struct {
 	repo      Repository
 	smsClient *sms.SmsClient
 	jwtClient *jwt.JWTClient
+	botClient *bot.BotClient
 }
 
-func NewAuthService(log *slog.Logger, repo Repository, smsClient *sms.SmsClient, jwtClient *jwt.JWTClient) *AuthService {
-	return &AuthService{log: log, repo: repo, smsClient: smsClient, jwtClient: jwtClient}
+func NewAuthService(log *slog.Logger, repo Repository, smsClient *sms.SmsClient, jwtClient *jwt.JWTClient, botClient *bot.BotClient) *AuthService {
+	return &AuthService{log: log, repo: repo, smsClient: smsClient, jwtClient: jwtClient, botClient: botClient}
 }
 
 func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber string) error {
@@ -45,10 +47,16 @@ func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber stri
 		return err
 	}
 
-	err = a.smsClient.SendSMS(fmt.Sprintf("Your verification code is %s", code), phoneNumber)
+	err = a.botClient.SendMessageToChannel(fmt.Sprintf("Your verification code is: %v", code))
 	if err != nil {
 		return err
 	}
+
+	// Production SMS
+	//err = a.smsClient.SendSMS(fmt.Sprintf("Your verification code is %s", code), phoneNumber)
+	//if err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -84,7 +92,6 @@ func (a *AuthService) VerifyCode(ctx context.Context, phoneNumber, code string) 
 
 func (a *AuthService) RefreshAccessToken(ctx context.Context, refreshToken string) (string, error) {
 	// Parse payload from token
-	log.Println("Parsing token")
 	phoneNumber, err := a.jwtClient.ParseToken(refreshToken)
 	if err != nil {
 		return "", err

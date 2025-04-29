@@ -66,3 +66,24 @@ func (r *Repository) IsValidCode(ctx context.Context, phoneNumber, verificationC
 
 	return true, nil
 }
+
+func (r *Repository) GetAll(ctx context.Context) (map[string]string, error) {
+	keys, err := r.cache.Keys(ctx, "*").Result()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]string)
+	for _, key := range keys {
+		val, err := r.cache.Get(ctx, key).Result()
+		if err == redis.Nil {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		result[key] = val
+	}
+
+	return result, nil
+}

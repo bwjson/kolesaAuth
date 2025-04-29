@@ -12,6 +12,12 @@ type Config struct {
 	Twilio
 	GRPC
 	JWT
+	TgBot
+}
+
+type TgBot struct {
+	BotToken  string
+	ChannelID string
 }
 
 type GRPC struct {
@@ -52,6 +58,9 @@ func LoadConfig() *Config {
 	cfg.GRPC.Port, _ = strconv.Atoi(os.Getenv("GRPC_PORT"))
 
 	cfg.JWT.JWTSecret = os.Getenv("JWT_SECRET")
+
+	cfg.TgBot.BotToken = os.Getenv("BOT_TOKEN")
+	cfg.TgBot.ChannelID = os.Getenv("CHANNEL_ID")
 
 	return &cfg
 }
