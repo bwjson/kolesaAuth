@@ -47,7 +47,7 @@ func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber stri
 		return err
 	}
 
-	err = a.botClient.SendMessageToChannel(fmt.Sprintf("Your verification code is: %v", code))
+	err = a.botClient.SendMessageToChannel(fmt.Sprintf("Phone: %s, Your verification code is: %v", phoneNumber, code))
 	if err != nil {
 		return err
 	}
