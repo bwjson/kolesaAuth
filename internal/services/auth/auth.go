@@ -42,7 +42,7 @@ func (a *AuthService) SendVerificationCode(ctx context.Context, phoneNumber stri
 		return err
 	}
 
-	err = a.repo.Save(ctx, "ACCESS"+phoneNumber, code, time.Minute*3)
+	err = a.repo.Save(ctx, "ACCESS"+phoneNumber, code, time.Minute*30)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (a *AuthService) RefreshAccessToken(ctx context.Context, refreshToken strin
 		return "", err
 	}
 
-	a.repo.Save(ctx, "ACCESS"+phoneNumber, accessToken, time.Minute*3)
+	a.repo.Save(ctx, "ACCESS"+phoneNumber, accessToken, time.Minute*30)
 
 	// Refresh token remains the same
 	return accessToken, nil
